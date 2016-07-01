@@ -2,7 +2,7 @@
 using System;
 using System.Runtime;
 
-namespace Abot.Core
+namespace Abot.Util
 {
     /// <summary>
     /// Handles memory monitoring/usage
@@ -20,6 +20,7 @@ namespace Abot.Core
         bool IsSpaceAvailable(int sizeInMb);
     }
 
+    [Serializable]
     public class MemoryManager : IMemoryManager
     {
         static ILog _logger = LogManager.GetLogger("AbotLogger");

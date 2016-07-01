@@ -9,28 +9,45 @@ namespace Abot.Core
     /// <summary>
     /// Parser that uses Html Agility Pack http://htmlagilitypack.codeplex.com/ to parse page links
     /// </summary>
+    [Serializable]
     public class HapHyperLinkParser : HyperLinkParser
     {
-        Func<string, string> _cleanURLFunc;
-        bool _isRespectMetaRobotsNoFollowEnabled;
-        bool _isRespectAnchorRelNoFollowEnabled;
-
         protected override string ParserType
         {
             get { return "HtmlAgilityPack"; }
         }
 
         public HapHyperLinkParser()
-            :this(false, false)
+            :base()
         {
         }
 
-        public HapHyperLinkParser(bool isRespectMetaRobotsNoFollowEnabled, bool isRespectAnchorRelNoFollowEnabled, Func<string, string> cleanURLFunc = null)
-            :base(isRespectMetaRobotsNoFollowEnabled)
+        [Obsolete("Use the constructor that accepts a configuration object instead")]
+        /// <summary>
+        /// Constructor
+        /// </summary>
+        /// <param name="isRespectMetaRobotsNoFollowEnabled">Whether parser should ignore pages with meta no robots</param>
+        /// <param name="isRespectAnchorRelNoFollowEnabled">Whether parser should ignore links with rel no follow</param>
+        /// <param name="cleanURLFunc">Function to clean the url</param>
+        /// <param name="isRespectUrlNamedAnchorOrHashbangEnabled">Whether parser should consider named anchor and/or hashbang '#' character as part of the url</param>
+        public HapHyperLinkParser(bool isRespectMetaRobotsNoFollowEnabled,
+                                  bool isRespectAnchorRelNoFollowEnabled,
+                                  Func<string, string> cleanURLFunc = null,
+                                  bool isRespectUrlNamedAnchorOrHashbangEnabled = false)
+            :this(new CrawlConfiguration
+            {
+                IsRespectMetaRobotsNoFollowEnabled = isRespectMetaRobotsNoFollowEnabled,
+                IsRespectUrlNamedAnchorOrHashbangEnabled = isRespectUrlNamedAnchorOrHashbangEnabled,
+                IsRespectAnchorRelNoFollowEnabled = isRespectAnchorRelNoFollowEnabled
+            }, cleanURLFunc)
         {
-            _isRespectMetaRobotsNoFollowEnabled = isRespectMetaRobotsNoFollowEnabled;
-            _isRespectAnchorRelNoFollowEnabled = isRespectAnchorRelNoFollowEnabled;
-            _cleanURLFunc = cleanURLFunc;
+            
+        }
+
+        public HapHyperLinkParser(CrawlConfiguration config, Func<string, string> cleanURLFunc)
+            : base(config, cleanURLFunc)
+        {
+            
         }
 
         protected override IEnumerable<string> GetHrefValues(CrawledPage crawledPage)
@@ -41,9 +58,11 @@ namespace Abot.Core
 
             HtmlNodeCollection aTags = crawledPage.HtmlDocument.DocumentNode.SelectNodes("//a[@href]");
             HtmlNodeCollection areaTags = crawledPage.HtmlDocument.DocumentNode.SelectNodes("//area[@href]");
+            HtmlNodeCollection canonicals = crawledPage.HtmlDocument.DocumentNode.SelectNodes("//link[@rel='canonical'][@href]");
 
             hrefValues.AddRange(GetLinks(aTags));
             hrefValues.AddRange(GetLinks(areaTags));
+            hrefValues.AddRange(GetLinks(canonicals));
 
             return hrefValues;
         }
@@ -60,7 +79,17 @@ namespace Abot.Core
             return hrefValue;
         }
 
-        private List<string> GetLinks(HtmlNodeCollection nodes)
+        protected override string GetMetaRobotsValue(CrawledPage crawledPage)
+        {
+            string robotsMeta = null;
+            HtmlNode robotsNode = crawledPage.HtmlDocument.DocumentNode.SelectSingleNode("//meta[translate(@name,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='robots']");
+            if (robotsNode != null)
+                robotsMeta = robotsNode.GetAttributeValue("content", "");
+
+            return robotsMeta;
+        }
+
+        protected virtual List<string> GetLinks(HtmlNodeCollection nodes)
         {
             List<string> hrefs = new List<string>();
 
@@ -73,18 +102,18 @@ namespace Abot.Core
                 if (HasRelNoFollow(node))
                     continue;
 
-                hrefValue = _cleanURLFunc != null ? _cleanURLFunc(node.Attributes["href"].Value) : node.Attributes["href"].Value;
+                hrefValue = node.Attributes["href"].Value;
                 if (!string.IsNullOrWhiteSpace(hrefValue))
                 {
                     hrefValue = DeEntitize(hrefValue);
                     hrefs.Add(hrefValue);
-                }	
+                }
             }
 
             return hrefs;
         }
 
-        private string DeEntitize(string hrefValue)
+        protected virtual string DeEntitize(string hrefValue)
         {
             string dentitizedHref = hrefValue;
             
@@ -100,20 +129,10 @@ namespace Abot.Core
             return dentitizedHref;
         }
 
-        protected override string GetMetaRobotsValue(CrawledPage crawledPage)
-        {
-            string robotsMeta = null;
-            HtmlNode robotsNode = crawledPage.HtmlDocument.DocumentNode.SelectSingleNode("//meta[translate(@name,'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')='robots']");
-            if (robotsNode != null)
-                robotsMeta = robotsNode.GetAttributeValue("content", "");
-
-            return robotsMeta;
-        }
-
-        private bool HasRelNoFollow(HtmlNode node)
+        protected virtual bool HasRelNoFollow(HtmlNode node)
         {
             HtmlAttribute attr = node.Attributes["rel"];
-            return _isRespectAnchorRelNoFollowEnabled && (attr != null && attr.Value.ToLower().Trim() == "nofollow");
+            return _config.IsRespectAnchorRelNoFollowEnabled && (attr != null && attr.Value.ToLower().Trim() == "nofollow");
         }
     }
 }

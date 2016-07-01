@@ -2,13 +2,14 @@
 using System;
 using System.Diagnostics;
 
-namespace Abot.Core
+namespace Abot.Util
 {
     public interface IMemoryMonitor : IDisposable
     {
         int GetCurrentUsageInMb();
     }
 
+    [Serializable]
     public class GcMemoryMonitor : IMemoryMonitor
     {
         static ILog _logger = LogManager.GetLogger("AbotLogger");

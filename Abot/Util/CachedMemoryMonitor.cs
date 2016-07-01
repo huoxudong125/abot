@@ -2,8 +2,9 @@
 using System;
 using System.Timers;
 
-namespace Abot.Core
+namespace Abot.Util
 {
+    [Serializable]
     public class CachedMemoryMonitor : IMemoryMonitor, IDisposable
     {
         static ILog _logger = LogManager.GetLogger("AbotLogger");

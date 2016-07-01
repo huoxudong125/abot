@@ -2,7 +2,7 @@
 using System;
 using System.Threading;
 
-namespace Abot.Core
+namespace Abot.Util
 {
     /// <summary>
     /// Handles the multithreading implementation details
@@ -12,7 +12,7 @@ namespace Abot.Core
         /// <summary>
         /// Max number of threads to use.
         /// </summary>
-        int MaxThreads { get; }
+        int MaxThreads { get; set; }
 
         /// <summary>
         /// Will perform the action asynchrously on a seperate thread
@@ -31,6 +31,7 @@ namespace Abot.Core
         void AbortAll();
     }
 
+    [Serializable]
     public abstract class ThreadManager : IThreadManager
     {
         protected static ILog _logger = LogManager.GetLogger("AbotLogger");
@@ -38,6 +39,7 @@ namespace Abot.Core
         protected int _numberOfRunningThreads = 0;
         protected ManualResetEvent _resetEvent = new ManualResetEvent(true);
         protected Object _locker = new Object();
+        protected bool _isDisplosed = false;
 
         public ThreadManager(int maxThreads)
         {
@@ -53,7 +55,7 @@ namespace Abot.Core
         public int MaxThreads
         {
             get;
-            private set;
+            set;
         }
 
         /// <summary>
@@ -67,13 +69,13 @@ namespace Abot.Core
             if (_abortAllCalled)
                 throw new InvalidOperationException("Cannot call DoWork() after AbortAll() or Dispose() have been called.");
 
-            if (MaxThreads > 1)
+            if (!_isDisplosed && MaxThreads > 1)
             {
                 _resetEvent.WaitOne();
                 lock (_locker)
                 {
                     _numberOfRunningThreads++;
-                    if (_numberOfRunningThreads >= MaxThreads)
+                    if (!_isDisplosed && _numberOfRunningThreads >= MaxThreads)
                         _resetEvent.Reset();
 
                     _logger.DebugFormat("Starting another thread, increasing running threads to [{0}].", _numberOfRunningThreads);
@@ -95,6 +97,8 @@ namespace Abot.Core
         public virtual void Dispose()
         {
             AbortAll();
+            _resetEvent.Dispose();
+            _isDisplosed = true;
         }
 
         public virtual bool HasRunningThreads()
@@ -127,7 +131,7 @@ namespace Abot.Core
                     {
                         _numberOfRunningThreads--;
                         _logger.DebugFormat("[{0}] threads are running.", _numberOfRunningThreads);
-                        if (_numberOfRunningThreads < MaxThreads)
+                        if (!_isDisplosed && _numberOfRunningThreads < MaxThreads)
                             _resetEvent.Set();
                     }
                 }

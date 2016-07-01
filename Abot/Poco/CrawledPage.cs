@@ -3,10 +3,12 @@ using HtmlAgilityPack;
 using log4net;
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Net;
 
 namespace Abot.Poco
 {
+    [Serializable]
     public class CrawledPage : PageToCrawl
     {
         ILog _logger = LogManager.GetLogger("AbotLogger");
@@ -46,7 +48,7 @@ namespace Abot.Poco
         /// <summary>
         /// Web response from the server. NOTE: The Close() method has been called before setting this property.
         /// </summary>
-        public HttpWebResponse HttpWebResponse { get; set; }
+        public HttpWebResponseWrapper HttpWebResponse { get; set; }
 
         /// <summary>
         /// The web exception that occurred during the crawl
@@ -76,6 +78,40 @@ namespace Abot.Poco
         /// The content of page request
         /// </summary>
         public PageContent Content { get; set; }
+
+        /// <summary>
+        /// A datetime of when the http request started
+        /// </summary>
+        public DateTime RequestStarted { get; set; }
+
+        /// <summary>
+        /// A datetime of when the http request completed
+        /// </summary>
+        public DateTime RequestCompleted { get; set; }
+
+        /// <summary>
+        /// A datetime of when the page content download started, this may be null if downloading the content was disallowed by the CrawlDecisionMaker or the inline delegate ShouldDownloadPageContent
+        /// </summary>
+        public DateTime? DownloadContentStarted { get; set; }
+
+        /// <summary>
+        /// A datetime of when the page content download completed, this may be null if downloading the content was disallowed by the CrawlDecisionMaker or the inline delegate ShouldDownloadPageContent
+        /// </summary>
+        public DateTime? DownloadContentCompleted { get; set; }
+
+        /// <summary>
+        /// The page that this pagee was redirected to
+        /// </summary>
+        public PageToCrawl RedirectedTo { get; set; }
+
+        /// <summary>
+        /// Time it took from RequestStarted to RequestCompleted in milliseconds
+        /// </summary>
+        public double Elapsed {
+            get {
+                return (RequestCompleted - RequestStarted).TotalMilliseconds;
+            }
+        }
 
         private CQ InitializeCsQueryDocument()
         {

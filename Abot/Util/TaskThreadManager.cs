@@ -2,12 +2,13 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Abot.Core
+namespace Abot.Util
 {
 
     /// <summary>
     /// A ThreadManager implementation that will use tpl Tasks to handle concurrency.
     /// </summary>
+    [Serializable]
     public class TaskThreadManager : ThreadManager
     {
         readonly CancellationTokenSource _cancellationTokenSource = new CancellationTokenSource();

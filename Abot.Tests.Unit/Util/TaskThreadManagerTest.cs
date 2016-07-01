@@ -1,8 +1,8 @@
-﻿using Abot.Core;
+﻿using Abot.Util;
 using NUnit.Framework;
 using System.Threading;
 
-namespace Abot.Tests.Unit.Core
+namespace Abot.Tests.Unit.Util
 {
     [TestFixture]
     public class TaskThreadManagerTest : ThreadManagerTest
@@ -27,7 +27,7 @@ namespace Abot.Tests.Unit.Core
 
             uut.AbortAll();
 
-            System.Threading.Thread.Sleep(250);
+            System.Threading.Thread.Sleep(500);
             Assert.IsTrue(count < 5);
         }
 

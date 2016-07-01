@@ -3,6 +3,7 @@ using System.Dynamic;
 
 namespace Abot.Poco
 {
+    [Serializable]
     public class PageToCrawl
     {
         //Needed for serialization
@@ -35,9 +36,19 @@ namespace Abot.Poco
         public bool IsRetry { get; set; }
 
         /// <summary>
+        /// The time in seconds that the server sent to wait before retrying.
+        /// </summary>
+        public double? RetryAfter { get; set; }
+
+        /// <summary>
         /// The number of times the http request was be retried.
         /// </summary>
         public int RetryCount { get; set; }
+
+        /// <summary>
+        /// The datetime that the last http request was made. Will be null unless retries are enabled.
+        /// </summary>
+        public DateTime? LastRequest { get; set; }
 
         /// <summary>
         /// Whether the page is the root uri of the crawl
@@ -58,6 +69,16 @@ namespace Abot.Poco
         /// Can store values of any type. Useful for adding custom values to the CrawledPage dynamically from event subscriber code
         /// </summary>
         public dynamic PageBag { get; set; }
+
+        /// <summary>
+        /// The uri that this page was redirected from. If null then it was not part of the redirect chain
+        /// </summary>
+        public CrawledPage RedirectedFrom { get; set; }
+
+        /// <summary>
+        /// The position in the redirect chain. The first redirect is position 1, the next one is 2 and so on.
+        /// </summary>
+        public int RedirectPosition { get; set; }
 
         public override string ToString()
         {

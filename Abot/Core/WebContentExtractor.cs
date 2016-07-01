@@ -5,45 +5,55 @@ using System;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
+
 namespace Abot.Core
 {
-    public interface IWebContentExtractor
+    public interface IWebContentExtractor : IDisposable
     {
         PageContent GetContent(WebResponse response);
     }
 
+    [Serializable]
     public class WebContentExtractor : IWebContentExtractor
     {
         static ILog _logger = LogManager.GetLogger("AbotLogger");
 
-        public PageContent GetContent(WebResponse response)
+        public virtual PageContent GetContent(WebResponse response)
         {
-            MemoryStream memoryStream = GetRawData(response);
-
-            String charset = GetCharsetFromHeaders(response);
-
-            if (charset == null)
-                charset = GetCharsetFromBody(memoryStream);
-
-            memoryStream.Seek(0, SeekOrigin.Begin);
-
-            Encoding e = GetEncoding(charset);
-            string content = "";
-            using (StreamReader sr = new StreamReader(memoryStream, e))
+            using (MemoryStream memoryStream = GetRawData(response))
             {
-                content = sr.ReadToEnd();
-            }
+                String charset = GetCharsetFromHeaders(response);
 
-            PageContent pageContent = new PageContent();
-            pageContent.Bytes = memoryStream.ToArray();
-            pageContent.Charset = charset;
-            pageContent.Encoding = e;
-            pageContent.Text = content;
-            
-            return pageContent;
+                if (charset == null) {
+                    memoryStream.Seek(0, SeekOrigin.Begin);
+
+                    // Do not wrap in closing statement to prevent closing of this stream.
+                    StreamReader srr = new StreamReader(memoryStream, Encoding.ASCII);
+                    String body = srr.ReadToEnd();
+                    charset = GetCharsetFromBody(body);
+                }
+                memoryStream.Seek(0, SeekOrigin.Begin);
+
+                charset = CleanCharset(charset);
+                Encoding e = GetEncoding(charset);
+                string content = "";
+                using (StreamReader sr = new StreamReader(memoryStream, e))
+                {
+                    content = sr.ReadToEnd();
+                }
+
+                PageContent pageContent = new PageContent();
+                pageContent.Bytes = memoryStream.ToArray();
+                pageContent.Charset = charset;
+                pageContent.Encoding = e;
+                pageContent.Text = content;
+
+                return pageContent;
+            }
         }
 
-        private string GetCharsetFromHeaders(WebResponse webResponse)
+        protected virtual string GetCharsetFromHeaders(WebResponse webResponse)
         {
             string charset = null;
             String ctype = webResponse.Headers["content-type"];
@@ -56,38 +66,24 @@ namespace Abot.Core
             return charset;
         }
 
-        private string GetCharsetFromBody(MemoryStream rawdata)
+        protected virtual string GetCharsetFromBody(string body)
         {
             String charset = null;
-
-            MemoryStream ms = rawdata;
-            ms.Seek(0, SeekOrigin.Begin);
-
-
-            //Do not wrapp in closing statement to prevent closing of the is stream
-            StreamReader srr = new StreamReader(ms, Encoding.ASCII);
-            String meta = srr.ReadToEnd();
-
-            if (meta != null)
+            
+            if (body != null)
             {
-                int start_ind = meta.IndexOf("charset=");
-                int end_ind = -1;
-                if (start_ind != -1)
+                //find expression from : http://stackoverflow.com/questions/3458217/how-to-use-regular-expression-to-match-the-charset-string-in-html
+                Match match = Regex.Match(body, @"<meta(?!\s*(?:name|value)\s*=)(?:[^>]*?content\s*=[\s""']*)?([^>]*?)[\s""';]*charset\s*=[\s""']*([^\s""'/>]*)", RegexOptions.IgnoreCase);
+                if (match.Success)
                 {
-                    end_ind = meta.IndexOf("\"", start_ind);
-                    if (end_ind != -1)
-                    {
-                        int start = start_ind + 8;
-                        charset = meta.Substring(start, end_ind - start + 1);
-                        charset = charset.TrimEnd(new Char[] { '>', '"' });
-                    }
+                    charset = string.IsNullOrWhiteSpace(match.Groups[2].Value) ? null : match.Groups[2].Value;
                 }
             }
 
             return charset;
         }
-
-        private Encoding GetEncoding(string charset)
+        
+        protected virtual Encoding GetEncoding(string charset)
         {
             Encoding e = Encoding.UTF8;
             if (charset != null)
@@ -96,10 +92,19 @@ namespace Abot.Core
                 {
                     e = Encoding.GetEncoding(charset);
                 }
-                catch { }
+                catch{}
             }
 
             return e;
+        }
+
+        protected virtual string CleanCharset(string charset)
+        {
+            //TODO temporary hack, this needs to be a configurable value
+            if (charset == "cp1251") //Russian, Bulgarian, Serbian cyrillic
+                charset = "windows-1251";
+
+            return charset;
         }
 
         private MemoryStream GetRawData(WebResponse webResponse)
@@ -127,6 +132,10 @@ namespace Abot.Core
 
             return rawData;
         }
-    }
 
+        public virtual void Dispose()
+        {
+            // Nothing to do
+        }
+    }
 }

@@ -1,13 +1,15 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace Abot.Poco
 {
+    [Serializable]
     public class CrawlConfiguration
     {
         public CrawlConfiguration()
         {
             MaxConcurrentThreads = 10;
-            UserAgentString = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; abot v@ABOTASSEMBLYVERSION@ http://code.google.com/p/abot)";
+            UserAgentString = "Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko";
             RobotsDotTextUserAgentString = "abot";
             MaxPagesToCrawl = 1000;
             DownloadableContentTypes = "text/html";
@@ -16,6 +18,9 @@ namespace Abot.Poco
             HttpRequestMaxAutoRedirects = 7;
             IsHttpRequestAutoRedirectsEnabled = true;
             MaxCrawlDepth = 100;
+            HttpServicePointConnectionLimit = 200;
+            HttpRequestTimeoutInSeconds = 15;
+            IsSslCertificateValidationEnabled = true;
         }
 
         #region crawlBehavior
@@ -29,19 +34,19 @@ namespace Abot.Poco
         /// Maximum number of pages to crawl.
         /// This value is required.
         /// </summary>
-        public long MaxPagesToCrawl { get; set; }
+        public int MaxPagesToCrawl { get; set; }
 
         /// <summary>
         /// Maximum number of pages to crawl per domain
         /// If zero, this setting has no effect.
         /// </summary>
-        public long MaxPagesToCrawlPerDomain { get; set; }
+        public int MaxPagesToCrawlPerDomain { get; set; }
 
         /// <summary>
         /// Maximum size of page. If the page size is above this value, it will not be downloaded or processed
         /// If zero, this setting has no effect.
         /// </summary>
-        public long MaxPageSizeInBytes { get; set; }
+        public int MaxPageSizeInBytes { get; set; }
 
         /// <summary>
         /// The maximum numer of seconds to respect in the robots.txt "Crawl-delay: X" directive. 
@@ -59,7 +64,7 @@ namespace Abot.Poco
         /// Maximum seconds before the crawl times out and stops. 
         /// If zero, this setting has no effect.
         /// </summary>
-        public long CrawlTimeoutSeconds { get; set; }
+        public int CrawlTimeoutSeconds { get; set; }
 
         /// <summary>
         /// Dictionary that stores additional keyvalue pairs that can be accessed throught the crawl pipeline
@@ -82,9 +87,14 @@ namespace Abot.Poco
         public bool IsExternalPageLinksCrawlingEnabled { get; set; }
 
         /// <summary>
+        /// Whether or not url named anchors or hashbangs are considered part of the url. If false, they will be ignored. If true, they will be considered part of the url.
+        /// </summary>
+        public bool IsRespectUrlNamedAnchorOrHashbangEnabled { get; set; }
+
+        /// <summary>
         /// A comma seperated string that has content types that should have their page content downloaded. For each page, the content type is checked to see if it contains any of the values defined here.
         /// </summary>
-        public string DownloadableContentTypes { get; set; } 
+        public string DownloadableContentTypes { get; set; }
 
         /// <summary>
         /// Gets or sets the maximum number of concurrent connections allowed by a System.Net.ServicePoint. The system default is 2. This means that only 2 concurrent http connections can be open to the same host.
@@ -115,6 +125,18 @@ namespace Abot.Poco
         public bool IsHttpRequestAutomaticDecompressionEnabled { get; set; }
 
         /// <summary>
+        /// Whether the cookies should be set and resent with every request
+        /// </summary>
+        public bool IsSendingCookiesEnabled { get; set; }
+
+        /// <summary>
+        /// Whether or not to validate the server SSL certificate. If true, the default validation will be made.
+        /// If false, the certificate validation is bypassed. This setting is useful to crawl sites with an
+        /// invalid or expired SSL certificate.
+        /// </summary>
+        public bool IsSslCertificateValidationEnabled { get; set; }
+
+        /// <summary>
         /// Uses closest mulitple of 16 to the value set. If there is not at least this much memory available before starting a crawl, throws InsufficientMemoryException.
         /// If zero, this setting has no effect.
         /// </summary>
@@ -143,6 +165,16 @@ namespace Abot.Poco
         /// </summary>
         public bool IsForcedLinkParsingEnabled { get; set; }
 
+        /// <summary>
+        /// The max number of retries for a url if a web exception is encountered. If the value is 0, no retries will be made
+        /// </summary>
+        public int MaxRetryCount { get; set; }
+
+        /// <summary>
+        /// The minimum delay between a failed http request and the next retry
+        /// </summary>
+        public int MinRetryDelayInMilliseconds { get; set; }
+
         #endregion
 
         #region politeness
@@ -158,9 +190,19 @@ namespace Abot.Poco
         public bool IsRespectMetaRobotsNoFollowEnabled { get; set; }
 
         /// <summary>
+        /// Whether the crawler should ignore links on pages that have an http X-Robots-Tag header of nofollow
+        /// </summary>
+        public bool IsRespectHttpXRobotsTagHeaderNoFollowEnabled { get; set; }
+
+        /// <summary>
         /// Whether the crawler should ignore links that have a <a href="whatever" rel="nofollow">...
         /// </summary>
         public bool IsRespectAnchorRelNoFollowEnabled { get; set; }
+
+        /// <summary>
+        /// If true, will ignore the robots.txt file if it disallows crawling the root uri.
+        /// </summary>
+        public bool IsIgnoreRobotsDotTextIfRootDisallowedEnabled { get; set; }
 
         /// <summary>
         /// The user agent string to use when checking robots.txt file for specific directives.  Some examples of other crawler's user agent values are "googlebot", "slurp" etc...
@@ -170,8 +212,25 @@ namespace Abot.Poco
         /// <summary>
         /// The number of milliseconds to wait in between http requests to the same domain.
         /// </summary>
-        public long MinCrawlDelayPerDomainMilliSeconds { get; set; }
-        
+        public int MinCrawlDelayPerDomainMilliSeconds { get; set; }
+
+        #endregion
+
+        #region Authorization
+
+        /// <summary>
+        /// Defines whatewer each request shold be autorized via login 
+        /// </summary>
+        public bool IsAlwaysLogin { get; set; }
+        /// <summary>
+        /// The user name to be used for autorization 
+        /// </summary>
+        public string LoginUser { get; set; }
+        /// <summary>
+        /// The password to be used for autorization 
+        /// </summary>
+        public string LoginPassword { get; set; }
+
         #endregion
     }
 }

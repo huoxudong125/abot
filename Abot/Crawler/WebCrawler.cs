@@ -8,7 +8,6 @@ using System.Timers;
 using Abot.Core;
 using Abot.Poco;
 using Abot.Util;
-using AutoMapper;
 using log4net;
 using Timer = System.Timers.Timer;
 
@@ -885,10 +884,7 @@ namespace Abot.Crawler
             CrawledPage crawledPage = _pageRequester.MakeRequest(pageToCrawl.Uri, ShouldDownloadPageContent);
             //CrawledPage crawledPage = await _pageRequester.MakeRequestAsync(pageToCrawl.Uri, ShouldDownloadPageContent);
 
-            dynamic combinedPageBag = this.CombinePageBags(pageToCrawl.PageBag, crawledPage.PageBag);
-            Mapper.CreateMap<PageToCrawl, CrawledPage>();
-            Mapper.Map(pageToCrawl, crawledPage);
-            crawledPage.PageBag = combinedPageBag;
+            Map(pageToCrawl, crawledPage);
 
             if (crawledPage.HttpWebResponse == null)
                 _logger.InfoFormat("Page crawl complete, Status:[NA] Url:[{0}] Elapsed:[{1}] Parent:[{2}] Retry:[{3}]", crawledPage.Uri.AbsoluteUri, crawledPage.Elapsed, crawledPage.ParentUri, crawledPage.RetryCount);
@@ -898,12 +894,28 @@ namespace Abot.Crawler
             return crawledPage;
         }
 
-        protected virtual dynamic CombinePageBags(dynamic pageToCrawlBag, dynamic crawledPageBag )
+        protected void Map(PageToCrawl src, CrawledPage dest)
+        {
+            dest.Uri = src.Uri;
+            dest.ParentUri = src.Uri;
+            dest.IsRetry = src.IsRetry;
+            dest.RetryAfter = src.RetryAfter;
+            dest.RetryCount = src.RetryCount;
+            dest.LastRequest = src.LastRequest;
+            dest.IsRoot = src.IsRoot;
+            dest.IsInternal = src.IsInternal;
+            dest.PageBag = CombinePageBags(src.PageBag, dest.PageBag);
+            dest.CrawlDepth = src.CrawlDepth;
+            dest.RedirectedFrom = src.RedirectedFrom;
+            dest.RedirectPosition = src.RedirectPosition;
+        }
+
+        protected virtual dynamic CombinePageBags(dynamic pageToCrawlBag, dynamic crawledPageBag)
         {
             IDictionary<string, object> combinedBag = new ExpandoObject();
             var pageToCrawlBagDict = pageToCrawlBag as IDictionary<string, object>;
             var crawledPageBagDict = crawledPageBag as IDictionary<string, object>;
-            
+
             foreach (KeyValuePair<string, object> entry in pageToCrawlBagDict) combinedBag[entry.Key] = entry.Value;
             foreach (KeyValuePair<string, object> entry in crawledPageBagDict) combinedBag[entry.Key] = entry.Value;
 
@@ -920,13 +932,7 @@ namespace Abot.Crawler
 
             int domainCount = 0;
             Interlocked.Increment(ref _crawlContext.CrawledCount);
-            lock (_crawlContext.CrawlCountByDomain)
-            {
-                if (_crawlContext.CrawlCountByDomain.TryGetValue(pageToCrawl.Uri.Authority, out domainCount))
-                    _crawlContext.CrawlCountByDomain[pageToCrawl.Uri.Authority] = domainCount + 1;
-                else
-                    _crawlContext.CrawlCountByDomain.TryAdd(pageToCrawl.Uri.Authority, 1);
-            }
+            _crawlContext.CrawlCountByDomain.AddOrUpdate(pageToCrawl.Uri.Authority, 1, (key, oldValue) => oldValue + 1);
         }
 
         protected virtual void ParsePageLinks(CrawledPage crawledPage)
@@ -936,12 +942,14 @@ namespace Abot.Crawler
 
         protected virtual void SchedulePageLinks(CrawledPage crawledPage)
         {
+            int linksToCrawl = 0;
             foreach (Uri uri in crawledPage.ParsedLinks)
             {
                 // First validate that the link was not already visited or added to the list of pages to visit, so we don't
                 // make the same validation and fire the same events twice.
                 if (!_scheduler.IsUriKnown(uri) &&
-                    (_shouldScheduleLinkDecisionMaker == null || _shouldScheduleLinkDecisionMaker.Invoke(uri, crawledPage, _crawlContext))) {
+                    (_shouldScheduleLinkDecisionMaker == null || _shouldScheduleLinkDecisionMaker.Invoke(uri, crawledPage, _crawlContext)))
+                {
                     try //Added due to a bug in the Uri class related to this (http://stackoverflow.com/questions/2814951/system-uriformatexception-invalid-uri-the-hostname-could-not-be-parsed)
                     {
                         PageToCrawl page = new PageToCrawl(uri);
@@ -953,6 +961,13 @@ namespace Abot.Crawler
                         if (ShouldSchedulePageLink(page))
                         {
                             _scheduler.Add(page);
+                            linksToCrawl++;
+                        }
+
+                        if (!ShouldScheduleMorePageLink(linksToCrawl))
+                        {
+                            _logger.InfoFormat("MaxLinksPerPage has been reached. No more links will be scheduled for current page [{0}].", crawledPage.Uri);
+                            break;
                         }
                     }
                     catch { }
@@ -969,6 +984,11 @@ namespace Abot.Crawler
                 return true;
 
             return false;   
+        }
+
+        protected virtual bool ShouldScheduleMorePageLink(int linksAdded)
+        {
+            return _crawlContext.CrawlConfiguration.MaxLinksPerPage == 0 || _crawlContext.CrawlConfiguration.MaxLinksPerPage > linksAdded;
         }
 
         protected virtual CrawlDecision ShouldDownloadPageContent(CrawledPage crawledPage)

@@ -1,4 +1,4 @@
-#Abot [![Build Status](https://ci.appveyor.com/api/projects/status/b1ukruawvu6uujn0?svg=true)](https://ci.appveyor.com/project/sjdirect/abot)
+#Abot [![Build Status](https://ci.appveyor.com/api/projects/status/b1ukruawvu6uujn0/branch/master?svg=true)](https://ci.appveyor.com/project/sjdirect/abot)
 
 *Please star this project!!* Contact me with exciting opportunities!!
 
@@ -23,15 +23,18 @@ Abot is an open source C# web crawler built for speed and flexibility. It takes 
   * [Need expert Abot customization?](https://github.com/sjdirect/abot/wiki/Custom-Development)
   * [Take the usage survey](https://www.surveymonkey.com/s/JS5826F) to help prioritize features/improvements
   * [Consider making a donation](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=G6ZY6BZNBFVQJ)
+  * [ASP.NET Core support](https://github.com/sjdirect/abot-dotnet-core/tree/master)
+  * [Unofficial Chinese Documentation](https://github.com/zixiliuyue/abot)
 
 ######Use [AbotX](http://abotx.org) for powerful extensions/wrappers
 
   * [Crawl multiple sites concurrently](http://abotx.org/Learn/ParallelCrawlerEngine)
   * [Execute/Render Javascript](http://abotx.org/Learn/JavascriptRendering)
-  * [Avoid getting blocked by sites](http://abotx.org/Learn/CrawlerX#crawlerx-pause-resume)
+  * [Avoid getting blocked by sites](http://abotx.org/Learn/AutoThrottling)
+  * [Auto Tuning](http://abotx.org/Learn/AutoTuning)
+  * [Auto Throttling](http://abotx.org/Learn/AutoThrottling)
   * [Pause/Resume live crawls](http://abotx.org/Learn/CrawlerX#crawlerx-pause-resume)
-  * [Schedule day/time crawl limits](http://abotx.org/Learn/Scheduler)
-  * [Automatically speed up/down based on current resource usage](http://abotx.org/Learn/ThroughputMaximizer)
+  * [Simplified pluggability/extensibility](https://abotx.org/Learn/CrawlerX#easy-override)
 
 <br /><br />
 <hr />
@@ -86,6 +89,7 @@ using Abot.Poco;
       maxMemoryUsageInMb="0"
       maxMemoryUsageCacheTimeInSeconds="0"
       maxCrawlDepth="1000"
+	  maxLinksPerPage="1000"
       isForcedLinkParsingEnabled="false"
       maxRetryCount="0"
       minRetryDelayInMilliseconds="0"
@@ -162,6 +166,9 @@ void crawler_ProcessPageCrawlCompleted(object sender, PageCrawlCompletedArgs e)
 
 	if (string.IsNullOrEmpty(crawledPage.Content.Text))
 		Console.WriteLine("Page had no content {0}", crawledPage.Uri.AbsoluteUri);
+	
+	var htmlAgilityPackDocument = crawledPage.HtmlDocument; //Html Agility Pack parser
+	var angleSharpHtmlDocument = crawledPage.AngleSharpHtmlDocument; //AngleSharp parser
 }
 
 void crawler_PageLinksCrawlDisallowed(object sender, PageLinksCrawlDisallowedArgs e)
@@ -464,7 +471,7 @@ public interface IPageRequester
 ######IHyperLinkParser
 The IHyperLinkParser interface deals with parsing the links out of raw html.
 
-[HapHyperlinkParser.cs](https://github.com/sjdirect/abot/blob/master/Abot/Core/HapHyperLinkParser.cs) is the default IHyperLinkParser used by the crawler. It uses the well known parsing library [Html Agility Pack](http://htmlagilitypack.codeplex.com/). There is also an alternative implementation [CsQueryHyperLinkParser.cs](https://github.com/sjdirect/abot/blob/master/Abot/Core/CsQueryHyperLinkParser.cs) which uses [CsQuery](https://github.com/jamietre/CsQuery) to do the parsing. CsQuery uses a css style selector like jquery but all in c#. 
+[HapHyperlinkParser.cs](https://github.com/sjdirect/abot/blob/master/Abot/Core/HapHyperLinkParser.cs) is the default IHyperLinkParser used by the crawler. It uses the well known parsing library [Html Agility Pack](http://htmlagilitypack.codeplex.com/). There is also an alternative implementation [AngleSharpHyperLinkParser.cs](https://github.com/sjdirect/abot/blob/master/Abot/Core/AngleSharpHyperLinkParser.cs) which uses [AngleSharp](https://github.com/AngleSharp/AngleSharp) to do the parsing. AngleSharp uses a css style selector like jquery but all in c#. 
 
 ```c#
 /// <summary>

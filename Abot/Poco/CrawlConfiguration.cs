@@ -31,8 +31,8 @@ namespace Abot.Poco
         public int MaxConcurrentThreads { get; set; }
 
         /// <summary>
-        /// Maximum number of pages to crawl.
-        /// This value is required.
+        /// Maximum number of pages to crawl. 
+        /// If zero, this setting has no effect
         /// </summary>
         public int MaxPagesToCrawl { get; set; }
 
@@ -47,13 +47,6 @@ namespace Abot.Poco
         /// If zero, this setting has no effect.
         /// </summary>
         public int MaxPageSizeInBytes { get; set; }
-
-        /// <summary>
-        /// The maximum numer of seconds to respect in the robots.txt "Crawl-delay: X" directive. 
-        /// IsRespectRobotsDotTextEnabled must be true for this value to be used.
-        /// If zero, will use whatever the robots.txt crawl delay requests no matter how high the value is.
-        /// </summary>
-        public int MaxRobotsDotTextCrawlDelayInSeconds { get; set; }
 
         /// <summary>
         /// The user agent string to use for http requests
@@ -161,6 +154,12 @@ namespace Abot.Poco
         public int MaxCrawlDepth { get; set; }
 
         /// <summary>
+        /// Maximum links to crawl per page.
+        /// If value is zero, this setting has no effect.
+        /// </summary>
+        public int MaxLinksPerPage { get; set; }
+
+        /// <summary>
         /// Gets or sets a value that indicates whether the crawler should parse the page's links even if a CrawlDecision (like CrawlDecisionMaker.ShouldCrawlPageLinks()) determines that those links will not be crawled.
         /// </summary>
         public bool IsForcedLinkParsingEnabled { get; set; }
@@ -213,6 +212,13 @@ namespace Abot.Poco
         /// The number of milliseconds to wait in between http requests to the same domain.
         /// </summary>
         public int MinCrawlDelayPerDomainMilliSeconds { get; set; }
+
+        /// <summary>
+        /// The maximum numer of seconds to respect in the robots.txt "Crawl-delay: X" directive. 
+        /// IsRespectRobotsDotTextEnabled must be true for this value to be used.
+        /// If zero, will use whatever the robots.txt crawl delay requests no matter how high the value is.
+        /// </summary>
+        public int MaxRobotsDotTextCrawlDelayInSeconds { get; set; }
 
         #endregion
 
